@@ -79,13 +79,15 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 5: Lead-Vehicle Acceleration Detector (Windows)
+## TASK 5: Lead-Vehicle Acceleration Detector (Windows) (COMPLETE — `cv/lead_vehicle.py`, branch `task-5-lead-vehicle-accel`, not yet merged to main)
 
 **Objective:** Identify the "lead vehicle" (closest tracked vehicle roughly centered ahead) and detect when it starts accelerating from rest.
 
 **Technical Approach:** Pick track with largest bbox area + smallest horizontal offset from frame center as lead vehicle. Maintain rolling centroid-position buffer (~10 frames); compute speed via frame-to-frame displacement; flag `accelerating=True` when speed crosses threshold after being ~0.
 
 **Interface:** Input: tracked vehicle list (Task 4 output). Output: JSON `{"lead_vehicle_id": int|null, "accelerating": bool, "speed_px_per_frame": float}`.
+
+**Status:** Implemented in `cv/lead_vehicle.py` (`LeadVehicleDetector`, stateful — call `.update(tracks, frame_width)` once per frame; `frame_width` is needed for the center-offset heuristic and isn't in Task 4's own output). Lead-vehicle score is bbox area discounted by normalized horizontal offset from center (`center_bias` default 0.8, so an off-center-but-huge box can still lose to a smaller centered one). Per-track centroid history (10-frame buffer) gives mean frame-to-frame displacement as `speed_px_per_frame`. Acceleration is a debounced rest→moving edge (Schmitt-trigger hysteresis: `rest_thresh` 1.0, `accel_thresh` 2.5 px/frame, 3-frame confirm — same debounce pattern as `TrafficLightDetector`'s red→green edge), so `accelerating=True` fires once per transition, not for every frame already moving. New tracks are assumed at rest (matches the app's stopped-at-a-light scenario). Verified on `intersection_montreal_720p.webm`: 4 distinct lead vehicles correctly edge-triggered `accelerating=True` over 300 frames as they pulled away, no chatter. Preview: `python -m cv.lead_vehicle <video>`.
 
 ---
 
