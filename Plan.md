@@ -18,6 +18,29 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
+## Camera & Test Data Status (updated 2026-09-26)
+
+**No webcam yet.** The product and the live demo still need a live camera, but *development* doesn't: every CV task is built and verified against recorded video via `FrameSource` file mode (repeatable, with known ground-truth timestamps). Fallback demo if live streaming isn't possible: run a recorded dashcam clip through the full pipeline (Task 18). `VIDEO_SOURCE` defaults to sample footage in `config.py`; switching to a live camera later is a one-line `.env` change (`VIDEO_SOURCE=0`).
+
+**Dashcam as the live source.** We have a dashcam. If it supports USB webcam (UVC) mode, `VIDEO_SOURCE=0`; if it offers a Wi-Fi/RTSP stream, `VIDEO_SOURCE=rtsp://...`. Either way `FrameSource` reads it unchanged — check the model's manual.
+
+**Sample footage** lives in `data/samples/` (gitignored; download commands + attribution in `data/samples/SOURCES.md`):
+- `ampel_red_to_green.ogv` — real traffic light red→green (~8.2 s). Used for Task 2 with fixed ROI `100,90,55,80`.
+- `intersection_montreal_720p.webm` — real intersection with cars/buses, handheld. Used for Tasks 3–6; too shaky for a fixed traffic-light ROI (needs YOLO-located ROI).
+
+**Dashcam shot list** (highest value first). Short clips (30–90 s), native resolution, dropped into `data/samples/`. Note roughly when each light turns green (e.g. "green at 0:14") — these timestamps are the ground truth for testing.
+1. Stopped at a red light with a car directly ahead, until it turns green (5–10 clips). Core demo scenario for Tasks 2, 5, 6, 7.
+2. Lead car pulls away while we stay stopped a few seconds (passenger/safe conditions only). Tasks 5 + 7 `lead_accelerating`.
+3. Approaching an intersection and braking to a stop. Task 6 moving→stationary.
+4. Varied lighting: midday sun, overcast, dusk/night. HSV threshold robustness.
+5. A turn with a car ahead also turning. Task 8 reference vehicle.
+
+Privacy: plates/faces/GPS overlays are fine for local testing; pick clean clips (and disable the GPS/date stamp) for anything shown at the demo or committed.
+
+**Suggested order while camera-less:** Mac-side tasks (10, 12, 13, 15, 16, 17) need no video at all and can proceed in parallel. Tasks 3–7 run on sample/dashcam footage but need `ultralytics` + PyTorch — Windows machine needs a Python 3.11 venv (currently only Python 3.14 installed) with CUDA torch: `pip install torch --index-url https://download.pytorch.org/whl/cu124` before `pip install -r requirements.txt`.
+
+---
+
 ## TASK 0: Project Scaffold & Environment
 
 **Objective:** Set up repo skeleton, dependencies, config loading.
@@ -39,6 +62,8 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: `source: int|str` (webcam index or file path), `loop: bool`. Output: generator/iterator yielding `(frame: np.ndarray, timestamp: float)`.
 
+**Status:** Implemented in `cv/frame_source.py`, merged to `main`.
+
 ---
 
 ## TASK 2: Traffic Light State Detector (HSV) (Windows)
@@ -48,6 +73,8 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 **Technical Approach:** Fixed or YOLO-detected ROI for light housing → convert ROI to HSV → `cv2.inRange` masks for red (two hue ranges wrapping 0/180), yellow, green → largest contour + pixel count threshold decides active color → maintain last-state to detect red→green edge.
 
 **Interface:** Input: `frame: np.ndarray`, optional `roi: (x,y,w,h)`. Output: JSON `{"state": "red"|"yellow"|"green"|"unknown", "transitioned_to_green": bool, "timestamp": float}`.
+
+**Status:** Implemented in `cv/traffic_light.py` (`TrafficLightDetector`). Tuned on real footage (`ampel_red_to_green.ogv`): lit lamps overexpose to a near-white core, so the HSV floors are S≥80, V≥110 (hue: red 0–10 & 165–179, yellow 15–35, green 40–100); min blob 8 px / 0.2% of ROI; morphological opening only for ROIs ≥100 px per side. State changes need 3 consecutive frames (~0.1 s at 30 FPS); the red→green edge compares against the last *known* state so brief `unknown` gaps don't hide it. No ROI → `unknown` (never scans the whole frame). Preview: `python -m cv.traffic_light <video> --select` (or `--roi x,y,w,h`, `--yolo yolov8n.pt`). Retune against dashcam clips, especially night footage.
 
 ---
 

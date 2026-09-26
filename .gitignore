@@ -6,3 +6,6 @@ __pycache__/
 .claude/
 graphify-out/
 CLAUDE.md
+# Sample footage (downloaded locally, see data/samples/SOURCES.md)
+data/samples/*
+!data/samples/SOURCES.md
