@@ -91,13 +91,15 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 6: Ego-Vehicle Stationary Detector (Windows)
+## TASK 6: Ego-Vehicle Stationary Detector (Windows) (COMPLETE — `cv/ego_stationary.py`, branch `task-6-ego-stationary`, not yet merged to main)
 
 **Objective:** Determine if our own (camera) vehicle is stationary, using only visual input (no speed sensor).
 
 **Technical Approach:** Sparse optical flow (`cv2.calcOpticalFlowPyrLK`) on static background features (road/lane markings, static corners via `cv2.goodFeaturesToTrack` in lower frame region excluding moving vehicle bboxes). Low mean flow magnitude over N frames = stationary.
 
 **Interface:** Input: current + previous grayscale frame, list of vehicle bboxes to exclude. Output: JSON `{"ego_stationary": bool, "mean_flow_magnitude": float}`.
+
+**Status:** Implemented in `cv/ego_stationary.py` (`EgoStationaryDetector`, stateful — call `.update(prev_gray, curr_gray, vehicle_bboxes)` once per frame pair). `cv2.goodFeaturesToTrack` samples corners only in the bottom half of the frame (`road_region_top` 0.5), masked out around each vehicle bbox (+6px margin, since LK's search window can pull in a few edge pixels of a car just outside its box) so moving vehicles and sky/horizon don't contaminate the "static background" sample. Per-frame mean flow magnitude is smoothed over a 5-frame rolling buffer, then a debounced threshold (`stationary_thresh` 0.75px, 3-frame confirm — same pattern as `TrafficLightDetector`'s confirmation) decides the reported `ego_stationary` flag, so a single noisy frame doesn't flip it. A frame with no trackable background (fully occluded by vehicles, featureless road) holds the last reading instead of guessing. Verified on `intersection_montreal_720p.webm` (handheld — real camera motion, not a static rig): flow tracked low (~0.2px) during held-still segments and correctly flagged `ego_stationary=false` during pans/shake (up to ~7.7px). Preview: `python -m cv.ego_stationary <video>`. Retune `stationary_thresh` once real in-vehicle dashcam footage is available (handheld shake and true stopped-at-a-light footage won't have identical noise floors).
 
 ---
 
