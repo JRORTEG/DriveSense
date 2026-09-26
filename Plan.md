@@ -101,13 +101,15 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 7: Distraction Alert Event Engine (Windows)
+## TASK 7: Distraction Alert Event Engine (Windows) (COMPLETE — `cv/alert_engine.py`, branch `task-7-alert-engine`, not yet merged to main)
 
 **Objective:** Fuse Tasks 2, 5, 6 into the core alert trigger: fire when (light turned green OR lead vehicle accelerates) AND ego is stationary, with debounce so it fires once per event.
 
 **Technical Approach:** Simple state machine class holding last-alert timestamp; debounce window (e.g. 3s); on trigger, package event dict and hand off to audio module (Task 12) and DB logger (Task 10).
 
 **Interface:** Input: `light_state` dict (Task 2), `lead_vehicle` dict (Task 5), `ego_stationary` dict (Task 6), `frame_timestamp`. Output: JSON `{"alert": bool, "reason": "light_green"|"lead_accelerating"|null, "timestamp": float}`.
+
+**Status:** Implemented in `cv/alert_engine.py` (`AlertEngine`, stateful — call `.update(light_state, lead_vehicle, ego_stationary, frame_timestamp)` once per frame). Fires only when `ego_stationary` is true AND at least one of Task 2's `transitioned_to_green` or Task 5's `accelerating` edge flags is set that frame; `light_green` wins priority if both land on the same frame. A single `debounce_s` (3.0 default) timestamp gate covers both reasons together, not per-reason, so a green light and the lead car accelerating within the same stopped period can't double-fire. Unit-verified with synthetic inputs: no-trigger, light-green trigger, immediate-repeat suppression, lead-accel trigger after the debounce window clears, ego-moving suppression (both edges true but `ego_stationary=false` correctly stays silent), and same-frame priority. Also composed live with Tasks 3/4/5/6 on `intersection_montreal_720p.webm`: lead-accelerating edges there land while the (handheld) camera is panning to follow the car, so `ego_stationary=false` correctly held the alert off -- confirms the AND-gate is wired right, though real footage with the ego vehicle actually stopped is needed to see a true positive end-to-end. Preview: `python -m cv.alert_engine <video> --roi x,y,w,h` (needs Task 2's ROI arg and Task 6's `cv/ego_stationary.py`, both on their own not-yet-merged branches).
 
 ---
 
