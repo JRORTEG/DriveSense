@@ -18,7 +18,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 0: Project Scaffold & Environment
+## TASK 0: Project Scaffold & Environment (COMPLETE)
 
 **Objective:** Set up repo skeleton, dependencies, config loading.
 
@@ -31,7 +31,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 1: Video Ingestion Module (Windows)
+## TASK 1: Video Ingestion Module (Windows) (COMPLETE — merged to main, `cv/frame_source.py`)
 
 **Objective:** Unified frame source — webcam or pre-recorded file, looped.
 
@@ -41,7 +41,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 2: Traffic Light State Detector (HSV) (Windows)
+## TASK 2: Traffic Light State Detector (HSV) (Windows) (COMPLETE — `cv/traffic_light.py`, branch `task-2-traffic-light`, not yet merged to main)
 
 **Objective:** Detect traffic light bounding region and classify state (red/yellow/green) via HSV masking; emit transition events (red→green).
 
@@ -51,7 +51,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 3: Vehicle Detector (YOLO) (Windows)
+## TASK 3: Vehicle Detector (YOLO) (Windows) (COMPLETE — `cv/vehicle_detector.py`, branch `task-3-vehicle-detector`, not yet merged to main)
 
 **Objective:** Detect vehicles per frame with bounding boxes + class.
 
@@ -61,7 +61,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 4: Simple Multi-Object Tracker (Windows)
+## TASK 4: Simple Multi-Object Tracker (Windows) (COMPLETE — `cv/tracker.py`, branch `task-4-vehicle-tracker`, not yet merged to main)
 
 **Objective:** Assign persistent IDs to detected vehicles across frames (needed for lead-vehicle acceleration + reference-vehicle highlight).
 
@@ -121,7 +121,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 10: FastAPI App + WebSocket Streaming Endpoint (Mac)
+## TASK 10: FastAPI App + WebSocket Streaming Endpoint (Mac) (COMPLETE — merged to main, `server/app.py`)
 
 **Objective:** Receive annotated frames and event JSON pushed from the Windows PC, and serve them to the browser frontend over WebSocket.
 
@@ -145,7 +145,7 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 12: Tiger Data (Postgres) Schema + Connection (Mac)
+## TASK 12: Tiger Data (Postgres) Schema + Connection (Mac) (COMPLETE — merged to main, `db/schema.sql` + `db/pool.py`; verified against Tiger Cloud, `/health` reports `"db":"connected","hypertable":true`)
 
 **Objective:** Define telemetry schema and connection pool for Tiger Data.
 
