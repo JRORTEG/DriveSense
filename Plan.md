@@ -75,6 +75,8 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: current-frame detection list (Task 3 output) + previous track state. Output: JSON `[{"track_id": int, "bbox": [...], "class": str, "velocity": [vx,vy]}, ...]` + updated internal state.
 
+**Status:** Implemented in `cv/tracker.py` (`VehicleTracker`, stateful — call `.update(detections)` once per frame). Greedy nearest-match: IoU when boxes overlap ≥ `min_iou` (0.15 default), else centroid distance within a `max_center_dist` gate (120px default); IoU matches always win over distance-only ones. No scipy/Hungarian algorithm needed. Class is majority-voted over a track's history so single-frame car/truck misclassification doesn't flicker the reported label. Velocity is the average frame-to-frame centroid displacement over the last `velocity_window` frames (5 default), in px/frame. Tracks unseen for `max_age` frames (15 default, ~0.5s at 30 FPS) are pruned and a later reappearance gets a new ID (no re-identification). `update()` returns only tracks matched in the current frame, not stale coasted boxes. Verified on `intersection_montreal_720p.webm`: ~95 FPS end-to-end with Task 3's detector on an RTX 2000 Ada; a parked car held the same ID across all 300 test frames, and two crossing vehicles didn't swap IDs. Unit-tested for occlusion recovery, pruning, and new-ID-on-reappearance. Preview: `python -m cv.tracker <video>`.
+
 ---
 
 ## TASK 5: Lead-Vehicle Acceleration Detector (Windows)
