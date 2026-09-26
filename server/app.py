@@ -6,8 +6,13 @@ consumers never share a socket:
 - ``/ws/ingest``  Windows PC connects here as a client and pushes JSON text
   frames shaped like one of:
     {"type": "frame", "data": "<base64 JPEG>", "timestamp": float}
-    {"type": "event", "alert": bool, "reason": str | null, "timestamp": float, ...}
+    {"type": "event", "alert": bool, "reason": str | null,
+     "ego_stationary": bool, "timestamp": float}
     {"type": "audio", "reason": str, "data": "<base64>"}   # added by Task 15
+
+  "event" is sent every frame, not only when an alert fires -- Task 14's
+  reaction-time capture needs a continuous ego_stationary reading to catch
+  the True->False flip after an alert (see server/reaction_tracker.py).
 
 - ``/ws/stream``  Browser clients connect here. Every message received on
   ``/ws/ingest`` is broadcast to every connected ``/ws/stream`` client.
@@ -32,6 +37,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db.pool import apply_schema, close_pool, create_pool, try_create_hypertable
 from db.telemetry import TelemetryLogger
+from server.reaction_tracker import ReactionTracker
 
 logger = logging.getLogger("drivesense.server")
 
@@ -129,11 +135,13 @@ async def lifespan(app: FastAPI):
     app.state.db_pool = await create_pool()
     app.state.hypertable = False
     app.state.telemetry = None
+    app.state.reaction_tracker = None
     if app.state.db_pool is not None:
         await apply_schema(app.state.db_pool)
         app.state.hypertable = await try_create_hypertable(app.state.db_pool)
         app.state.telemetry = TelemetryLogger(app.state.db_pool)
         await app.state.telemetry.start()
+        app.state.reaction_tracker = ReactionTracker(app.state.telemetry)
 
     yield
 
@@ -162,6 +170,10 @@ async def health() -> dict:
     summary["hypertable"] = app.state.hypertable
     summary["telemetry"] = (
         app.state.telemetry.stats() if app.state.telemetry is not None else None
+    )
+    summary["reaction_pending"] = (
+        app.state.reaction_tracker is not None
+        and app.state.reaction_tracker.pending_since is not None
     )
     return summary
 
@@ -195,10 +207,24 @@ async def ws_ingest(websocket: WebSocket) -> None:
                 try:
                     if msg_type == "frame":
                         tel.maybe_log_frame(msg)
-                    else:
+                    elif msg_type == "audio" or (msg_type == "event" and msg.get("alert")):
+                        # "event" now fires every frame (Task 14 needs a
+                        # continuous ego_stationary reading), so only alerts
+                        # are worth a row here -- logging every non-alert
+                        # tick would flood detection_events at ~15/sec with
+                        # nothing but idle state. ReactionTracker below still
+                        # sees every event regardless of this filter.
                         tel.log_event(msg)
                 except Exception:
                     logger.exception("telemetry enqueue failed for type=%s", msg_type)
+
+            if msg_type == "event":
+                tracker = app.state.reaction_tracker
+                if tracker is not None:
+                    try:
+                        tracker.on_event(msg)
+                    except Exception:
+                        logger.exception("reaction tracker failed on event")
     except WebSocketDisconnect:
         logger.info("producer disconnected from /ws/ingest")
     except Exception:
