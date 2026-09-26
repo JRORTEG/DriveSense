@@ -18,30 +18,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## Camera & Test Data Status (updated 2026-09-26)
-
-**No webcam yet.** The product and the live demo still need a live camera, but *development* doesn't: every CV task is built and verified against recorded video via `FrameSource` file mode (repeatable, with known ground-truth timestamps). Fallback demo if live streaming isn't possible: run a recorded dashcam clip through the full pipeline (Task 18). `VIDEO_SOURCE` defaults to sample footage in `config.py`; switching to a live camera later is a one-line `.env` change (`VIDEO_SOURCE=0`).
-
-**Dashcam as the live source.** We have a dashcam. If it supports USB webcam (UVC) mode, `VIDEO_SOURCE=0`; if it offers a Wi-Fi/RTSP stream, `VIDEO_SOURCE=rtsp://...`. Either way `FrameSource` reads it unchanged — check the model's manual.
-
-**Sample footage** lives in `data/samples/` (gitignored; download commands + attribution in `data/samples/SOURCES.md`):
-- `ampel_red_to_green.ogv` — real traffic light red→green (~8.2 s). Used for Task 2 with fixed ROI `100,90,55,80`.
-- `intersection_montreal_720p.webm` — real intersection with cars/buses, handheld. Used for Tasks 3–6; too shaky for a fixed traffic-light ROI (needs YOLO-located ROI).
-
-**Dashcam shot list** (highest value first). Short clips (30–90 s), native resolution, dropped into `data/samples/`. Note roughly when each light turns green (e.g. "green at 0:14") — these timestamps are the ground truth for testing.
-1. Stopped at a red light with a car directly ahead, until it turns green (5–10 clips). Core demo scenario for Tasks 2, 5, 6, 7.
-2. Lead car pulls away while we stay stopped a few seconds (passenger/safe conditions only). Tasks 5 + 7 `lead_accelerating`.
-3. Approaching an intersection and braking to a stop. Task 6 moving→stationary.
-4. Varied lighting: midday sun, overcast, dusk/night. HSV threshold robustness.
-5. A turn with a car ahead also turning. Task 8 reference vehicle.
-
-Privacy: plates/faces/GPS overlays are fine for local testing; pick clean clips (and disable the GPS/date stamp) for anything shown at the demo or committed.
-
-**Suggested order while camera-less:** Mac-side tasks (10, 12, 13, 15, 16, 17) need no video at all and can proceed in parallel. Tasks 3–7 run on sample/dashcam footage but need `ultralytics` + PyTorch — Windows machine needs a Python 3.11 venv (currently only Python 3.14 installed) with CUDA torch: `pip install torch --index-url https://download.pytorch.org/whl/cu124` before `pip install -r requirements.txt`.
-
----
-
-## TASK 0: Project Scaffold & Environment
+## TASK 0: Project Scaffold & Environment (COMPLETE)
 
 **Objective:** Set up repo skeleton, dependencies, config loading.
 
@@ -54,7 +31,7 @@ Privacy: plates/faces/GPS overlays are fine for local testing; pick clean clips 
 
 ---
 
-## TASK 1: Video Ingestion Module (Windows)
+## TASK 1: Video Ingestion Module (Windows) (COMPLETE — merged to main, `cv/frame_source.py`)
 
 **Objective:** Unified frame source — webcam or pre-recorded file, looped.
 
@@ -66,7 +43,7 @@ Privacy: plates/faces/GPS overlays are fine for local testing; pick clean clips 
 
 ---
 
-## TASK 2: Traffic Light State Detector (HSV) (Windows)
+## TASK 2: Traffic Light State Detector (HSV) (Windows) (COMPLETE — `cv/traffic_light.py`, branch `task-2-traffic-light`, not yet merged to main)
 
 **Objective:** Detect traffic light bounding region and classify state (red/yellow/green) via HSV masking; emit transition events (red→green).
 
@@ -78,7 +55,7 @@ Privacy: plates/faces/GPS overlays are fine for local testing; pick clean clips 
 
 ---
 
-## TASK 3: Vehicle Detector (YOLO) (Windows)
+## TASK 3: Vehicle Detector (YOLO) (Windows) (COMPLETE — `cv/vehicle_detector.py`, branch `task-3-vehicle-detector`, not yet merged to main)
 
 **Objective:** Detect vehicles per frame with bounding boxes + class.
 
@@ -88,7 +65,7 @@ Privacy: plates/faces/GPS overlays are fine for local testing; pick clean clips 
 
 ---
 
-## TASK 4: Simple Multi-Object Tracker (Windows)
+## TASK 4: Simple Multi-Object Tracker (Windows) (COMPLETE — `cv/tracker.py`, branch `task-4-vehicle-tracker`, not yet merged to main)
 
 **Objective:** Assign persistent IDs to detected vehicles across frames (needed for lead-vehicle acceleration + reference-vehicle highlight).
 
@@ -148,7 +125,7 @@ Privacy: plates/faces/GPS overlays are fine for local testing; pick clean clips 
 
 ---
 
-## TASK 10: FastAPI App + WebSocket Streaming Endpoint (Mac)
+## TASK 10: FastAPI App + WebSocket Streaming Endpoint (Mac) (COMPLETE — merged to main, `server/app.py`)
 
 **Objective:** Receive annotated frames and event JSON pushed from the Windows PC, and serve them to the browser frontend over WebSocket.
 
@@ -172,7 +149,7 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 12: Tiger Data (Postgres) Schema + Connection (Mac)
+## TASK 12: Tiger Data (Postgres) Schema + Connection (Mac) (COMPLETE — merged to main, `db/schema.sql` + `db/pool.py`; verified against Tiger Cloud, `/health` reports `"db":"connected","hypertable":true`)
 
 **Objective:** Define telemetry schema and connection pool for Tiger Data.
 
