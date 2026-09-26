@@ -15,6 +15,16 @@ Fill in `.env` with your `TIGER_DATA_DSN` and `ELEVENLABS_API_KEY`.
 
 Run: `python main.py`
 
+## Hardware / Network
+
+Static LAN IPs:
+
+| Machine | IP |
+|---|---|
+| Raspberry Pi | 192.168.8.10 |
+| Windows | 192.168.8.11 |
+| Mac | 192.168.8.12 |
+
 ## Layout
 
 - `cv/` — vision pipeline (detection, tracking, alert logic)
