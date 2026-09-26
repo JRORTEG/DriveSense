@@ -6,3 +6,8 @@ __pycache__/
 .claude/
 graphify-out/
 CLAUDE.md
+# YOLO weights (auto-downloaded by ultralytics)
+*.pt
+# Sample footage (downloaded locally, see data/samples/SOURCES.md)
+data/samples/*
+!data/samples/SOURCES.md
