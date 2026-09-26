@@ -63,6 +63,8 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: `frame: np.ndarray`. Output: JSON list `[{"id": null, "bbox": [x1,y1,x2,y2], "class": "car", "conf": 0.87}, ...]`.
 
+**Status:** Implemented in `cv/vehicle_detector.py` (`VehicleDetector`). Auto-picks `cuda:0` when available (FP16 via `quantize=16`, warm-up inference at construction) and falls back to CPU. Verified on `intersection_montreal_720p.webm`: ~85 FPS on an RTX 2000 Ada Laptop GPU, correct boxes on cars/trucks, cyclist correctly excluded. Preview/benchmark: `python -m cv.vehicle_detector <video> [--out annotated.mp4]`. Needs a Python 3.11 venv (`py install 3.11`; the system default was 3.14, which `torch`/`ultralytics` don't support yet) with CUDA `torch` (`pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128`, matched to the installed driver's CUDA version) installed before `pip install -r requirements.txt`. On Windows, `torch`'s DLLs also need the Microsoft VC++ Redistributable (https://aka.ms/vs/17/release/vc_redist.x64.exe) — without it, `import torch` fails with `WinError 126`.
+
 ---
 
 ## TASK 4: Simple Multi-Object Tracker (Windows) (COMPLETE — `cv/tracker.py`, branch `task-4-vehicle-tracker`, not yet merged to main)
