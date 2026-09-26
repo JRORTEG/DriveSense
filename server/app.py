@@ -30,6 +30,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from db.pool import apply_schema, close_pool, create_pool, try_create_hypertable
+
 logger = logging.getLogger("drivesense.server")
 
 EVENT_QUEUE_MAXSIZE = 256
@@ -122,8 +124,16 @@ class ConnectionHub:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.hub = ConnectionHub()
-    # Task 12 will attach app.state.db_pool here too.
+
+    app.state.db_pool = await create_pool()
+    app.state.hypertable = False
+    if app.state.db_pool is not None:
+        await apply_schema(app.state.db_pool)
+        app.state.hypertable = await try_create_hypertable(app.state.db_pool)
+
     yield
+
+    await close_pool(app.state.db_pool)
 
 
 app = FastAPI(title="DriveSense Relay", lifespan=lifespan)
@@ -141,7 +151,10 @@ app.add_middleware(
 
 @app.get("/health")
 async def health() -> dict:
-    return app.state.hub.summary()
+    summary = app.state.hub.summary()
+    summary["db"] = "connected" if app.state.db_pool is not None else "unavailable"
+    summary["hypertable"] = app.state.hypertable
+    return summary
 
 
 @app.websocket("/ws/ingest")
