@@ -36,7 +36,7 @@ _STRIP_KEYS = ("data", "type")
 _STOP = object()
 
 
-def _to_timestamptz(raw) -> datetime:
+def to_timestamptz(raw) -> datetime:
     """Producer sends time.time() floats; the column is TIMESTAMPTZ. asyncpg
     does not coerce floats, so this must happen explicitly. Anything
     unparseable falls back to "now" rather than failing the whole row."""
@@ -98,7 +98,7 @@ class TelemetryLogger:
         self._enqueue("frame_sample", msg)
 
     def _enqueue(self, event_type: str, msg: dict) -> None:
-        timestamp = _to_timestamptz(msg.get("timestamp"))
+        timestamp = to_timestamptz(msg.get("timestamp"))
         payload = _sanitize_payload(msg)
         try:
             self._queue.put_nowait((timestamp, event_type, payload))

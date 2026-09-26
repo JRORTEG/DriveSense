@@ -175,13 +175,15 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 14: Reaction-Time Capture (Mac)
+## TASK 14: Reaction-Time Capture (Mac) (COMPLETE — branch `feat/task-14-reaction-time`, not yet merged to main; `server/reaction_tracker.py`)
 
 **Objective:** Measure and log time between alert firing and driver "reacting" (ego vehicle starts moving again, from Task 6 flipping to `ego_stationary=False`).
 
 **Technical Approach:** On alert trigger, store `alert_timestamp` in memory; watch subsequent frames' `ego_stationary` output; on first `False` after an active alert, compute `delta_ms` and write to `reaction_times` table via Task 13's logger.
 
 **Interface:** Input: alert event (Task 7) stream, ego-stationary stream (Task 6). Output: DB row `{"alert_timestamp", "driver_reaction_timestamp", "delta_ms"}`.
+
+**Status:** Implemented in `server/reaction_tracker.py` (`ReactionTracker`), hooked into `server/app.py`'s `/ws/ingest` handler alongside Task 13's telemetry call. Required extending the wire contract (documented in `server/app.py`'s module docstring, since Task 11 doesn't exist yet to define it): `"event"` messages now fire every frame, not just on alert, always carrying `ego_stationary` — Task 7's engine already needs that value as an input every frame, so it's a near-free addition. Single-pending-alert model: a new alert always replaces whatever was pending. Reuses Task 13's `TelemetryLogger.log_reaction_time()` and its `to_timestamptz()` float→`TIMESTAMPTZ` conversion (made public for this). Filtered Task 13's `log_event()` call to alerts/audio only, not every per-frame event — the extended contract would otherwise flood `detection_events` at ~15/sec with idle state. `scripts/fake_producer.py` extended to simulate a randomized driver-reaction delay per alert so the full round-trip is exercisable without Windows. Verified against live Tiger Cloud: `reaction_pending` flips true/false correctly in `/health`, logged `delta_ms` matches simulated delays with zero negative values, overlapping alerts correctly replace the pending one instead of double-logging, relay throughput unaffected, graceful degradation intact with no DSN.
 
 ---
 
