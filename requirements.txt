@@ -1,0 +1,9 @@
+opencv-python
+ultralytics
+fastapi
+uvicorn[standard]
+websockets
+asyncpg
+python-dotenv
+elevenlabs
+numpy
