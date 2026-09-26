@@ -31,6 +31,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.pool import apply_schema, close_pool, create_pool, try_create_hypertable
+from db.telemetry import TelemetryLogger
 
 logger = logging.getLogger("drivesense.server")
 
@@ -127,12 +128,17 @@ async def lifespan(app: FastAPI):
 
     app.state.db_pool = await create_pool()
     app.state.hypertable = False
+    app.state.telemetry = None
     if app.state.db_pool is not None:
         await apply_schema(app.state.db_pool)
         app.state.hypertable = await try_create_hypertable(app.state.db_pool)
+        app.state.telemetry = TelemetryLogger(app.state.db_pool)
+        await app.state.telemetry.start()
 
     yield
 
+    if app.state.telemetry is not None:
+        await app.state.telemetry.stop()
     await close_pool(app.state.db_pool)
 
 
@@ -154,6 +160,9 @@ async def health() -> dict:
     summary = app.state.hub.summary()
     summary["db"] = "connected" if app.state.db_pool is not None else "unavailable"
     summary["hypertable"] = app.state.hypertable
+    summary["telemetry"] = (
+        app.state.telemetry.stats() if app.state.telemetry is not None else None
+    )
     return summary
 
 
@@ -180,6 +189,16 @@ async def ws_ingest(websocket: WebSocket) -> None:
                 app.state.hub.broadcast(raw, msg_type)
             except Exception:
                 logger.exception("broadcast failed for type=%s", msg_type)
+
+            tel = app.state.telemetry
+            if tel is not None:
+                try:
+                    if msg_type == "frame":
+                        tel.maybe_log_frame(msg)
+                    else:
+                        tel.log_event(msg)
+                except Exception:
+                    logger.exception("telemetry enqueue failed for type=%s", msg_type)
     except WebSocketDisconnect:
         logger.info("producer disconnected from /ws/ingest")
     except Exception:

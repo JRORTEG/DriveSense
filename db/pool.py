@@ -8,6 +8,7 @@ to keep running with or without a database. Every caller in Task 13+ must
 treat create_pool() returning None as "skip DB logging", not as an error.
 """
 
+import json
 import logging
 from pathlib import Path
 
@@ -30,6 +31,17 @@ def _dsn_looks_configured(dsn: str | None) -> bool:
     return not any(marker in dsn for marker in _PLACEHOLDER_MARKERS)
 
 
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    """Register a JSONB codec so dicts round-trip natively. asyncpg has no
+    built-in dict<->JSONB mapping -- without this, every insert would need
+    an explicit $n::jsonb cast and every read would come back as a string
+    needing manual json.loads. Task 13's telemetry writer and Task 17's
+    dashboard reads both depend on this being registered once, here."""
+    await conn.set_type_codec(
+        "jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
+    )
+
+
 async def create_pool() -> asyncpg.Pool | None:
     """Connect to Tiger Cloud. Returns None (never raises) if unconfigured
     or unreachable, so the caller can boot without a database."""
@@ -43,7 +55,12 @@ async def create_pool() -> asyncpg.Pool | None:
 
     try:
         pool = await asyncpg.create_pool(
-            dsn, min_size=1, max_size=5, timeout=10, command_timeout=10
+            dsn,
+            min_size=1,
+            max_size=5,
+            timeout=10,
+            command_timeout=10,
+            init=_init_connection,
         )
         logger.info("connected to Tiger Data")
         return pool
