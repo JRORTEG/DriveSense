@@ -163,13 +163,15 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 13: Telemetry Logging Service (Mac)
+## TASK 13: Telemetry Logging Service (Mac) (COMPLETE — merged to main, `db/telemetry.py`; verified against Tiger Cloud)
 
 **Objective:** Persist frame-level detection events and alert/reaction-time data asynchronously without blocking the video loop.
 
 **Technical Approach:** Async writer function using `app.state.db_pool.execute(...)`; called from Task 11 pipeline on each alert event and periodically (e.g. every N frames) for general telemetry. Batch inserts if frequency is high to avoid connection saturation.
 
 **Interface:** Input: event dict (from Task 7/8), `db_pool`. Output: row inserted in `detection_events`; returns nothing (fire-and-forget with error logging).
+
+**Status:** Implemented in `db/telemetry.py` (`TelemetryLogger`), hooked into `server/app.py`'s `/ws/ingest` handler (the actual Mac-side integration point — see Task 11's note on why). Non-blocking `put_nowait` enqueue, background worker batches up to 100 rows or flushes every 1s via `executemany`. Frames sampled every `TELEMETRY_FRAME_SAMPLE_N` (30) instead of logged wholesale; base64 `data` stripped from every payload before storage. Shutdown uses a `_STOP` sentinel pushed through the same queue (not `task.cancel()`) so the final in-flight batch always flushes — a cancel-based version was tried first and silently dropped queued-but-uncollected rows on shutdown; caught and fixed during verification. Verified against live Tiger Cloud: exact event/frame-sample counts, sanitized payloads (max row 85 bytes, zero leaked `data` keys), `payload->>'reason'` resolves, relay throughput unaffected by live DB writes, graceful degradation intact with no DSN.
 
 ---
 
