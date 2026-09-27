@@ -121,15 +121,13 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 9: Frame Annotation Renderer (Windows) (COMPLETE — `cv/annotator.py`, branch `task-9-frame-annotator`, not yet merged to main)
+## TASK 9: Frame Annotation Renderer (Windows)
 
 **Objective:** Draw all overlays (vehicle boxes, reference highlight, traffic-light state badge, alert banner) onto the frame for HUD output.
 
 **Technical Approach:** `cv2` drawing primitives (`rectangle`, `putText`, semi-transparent overlay via `cv2.addWeighted` for alert banner flash). Pure function, no state. Output frame is not displayed locally — it is handed to Task 11's network client, which streams it to the Mac.
 
 **Interface:** Input: `frame`, tracked vehicles (Task 4), reference-vehicle data (Task 8), light state (Task 2), alert event (Task 7). Output: annotated `np.ndarray` frame, passed to Task 11 for network transmission.
-
-**Status:** Implemented in `cv/annotator.py` (`annotate_frame(frame, tracks, reference_result, light_state, alert_result, light_roi=None)`), a stateless function that just calls each task's own drawing code in order: `tracker.draw_tracks`, `reference_vehicle.draw_overlay`, `traffic_light.draw_overlay` (needs `light_roi` -- `TrafficLightDetector.last_roi` -- since `light_state` alone doesn't carry the box position), then `alert_engine.draw_overlay` last so the alert banner flashes on top of everything else. Depends on Tasks 6/7/8's modules (`cv/ego_stationary.py`, `cv/alert_engine.py`, `cv/reference_vehicle.py`), all currently complete but living on their own not-yet-merged branches -- expected given the parallel task branches, resolves once those merge. Verified by composing the full Tasks 2/3/4/5/6/7/8/9 pipeline on `intersection_montreal_720p.webm` and visually inspecting an extracted frame: vehicle boxes with track ID/velocity arrows, the traffic-light badge, and the green "Follow this car" reference highlight all render correctly together, no crashes over 300 frames. Preview: `python -m cv.annotator <video> --direction left|right|straight [--roi x,y,w,h]`.
 
 ---
 
