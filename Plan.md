@@ -43,7 +43,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 2: Traffic Light State Detector (HSV) (Windows) (COMPLETE — `cv/traffic_light.py`, branch `task-2-traffic-light`, not yet merged to main)
+## TASK 2: Traffic Light State Detector (HSV) (Windows) (COMPLETE — `cv/traffic_light.py`, merged to main via PR #3)
 
 **Objective:** Detect traffic light bounding region and classify state (red/yellow/green) via HSV masking; emit transition events (red→green).
 
@@ -51,11 +51,11 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: `frame: np.ndarray`, optional `roi: (x,y,w,h)`. Output: JSON `{"state": "red"|"yellow"|"green"|"unknown", "transitioned_to_green": bool, "timestamp": float}`.
 
-**Status:** Implemented in `cv/traffic_light.py` (`TrafficLightDetector`). Tuned on real footage (`ampel_red_to_green.ogv`): lit lamps overexpose to a near-white core, so the HSV floors are S≥80, V≥110 (hue: red 0–10 & 165–179, yellow 15–35, green 40–100); min blob 8 px / 0.2% of ROI; morphological opening only for ROIs ≥100 px per side. State changes need 3 consecutive frames (~0.1 s at 30 FPS); the red→green edge compares against the last *known* state so brief `unknown` gaps don't hide it. No ROI → `unknown` (never scans the whole frame). Preview: `python -m cv.traffic_light <video> --select` (or `--roi x,y,w,h`, `--yolo yolov8n.pt`). Retune against dashcam clips, especially night footage.
+**Status:** Implemented in `cv/traffic_light.py` (`TrafficLightDetector`). Tuned on real footage (`ampel_red_to_green.ogv`): lit lamps overexpose to a near-white core, so the HSV floors are S≥80, V≥110 (hue: red 0–10 & 165–179, yellow 15–35, green 40–100); min blob 8 px / 0.2% of ROI; morphological opening only for ROIs ≥100 px per side. State changes need 3 consecutive frames (~0.1 s at 30 FPS); the red→green edge compares against the last *known* state so brief `unknown` gaps don't hide it. No ROI → `unknown` (never scans the whole frame). Preview: `python -m cv.traffic_light <video> --select` (or `--roi x,y,w,h`, `--yolo yolov8n.pt`). Retune against dashcam clips, especially night footage. Merged to `main` via PR #3.
 
 ---
 
-## TASK 3: Vehicle Detector (YOLO) (Windows) (COMPLETE — `cv/vehicle_detector.py`, branch `task-3-vehicle-detector`, not yet merged to main)
+## TASK 3: Vehicle Detector (YOLO) (Windows) (COMPLETE — `cv/vehicle_detector.py`, merged to main via PR #5)
 
 **Objective:** Detect vehicles per frame with bounding boxes + class.
 
@@ -63,11 +63,11 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: `frame: np.ndarray`. Output: JSON list `[{"id": null, "bbox": [x1,y1,x2,y2], "class": "car", "conf": 0.87}, ...]`.
 
-**Status:** Implemented in `cv/vehicle_detector.py` (`VehicleDetector`). Auto-picks `cuda:0` when available (FP16 via `quantize=16`, warm-up inference at construction) and falls back to CPU. Verified on `intersection_montreal_720p.webm`: ~85 FPS on an RTX 2000 Ada Laptop GPU, correct boxes on cars/trucks, cyclist correctly excluded. Preview/benchmark: `python -m cv.vehicle_detector <video> [--out annotated.mp4]`. Needs a Python 3.11 venv (`py install 3.11`; the system default was 3.14, which `torch`/`ultralytics` don't support yet) with CUDA `torch` (`pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128`, matched to the installed driver's CUDA version) installed before `pip install -r requirements.txt`. On Windows, `torch`'s DLLs also need the Microsoft VC++ Redistributable (https://aka.ms/vs/17/release/vc_redist.x64.exe) — without it, `import torch` fails with `WinError 126`.
+**Status:** Implemented in `cv/vehicle_detector.py` (`VehicleDetector`). Auto-picks `cuda:0` when available (FP16 via `quantize=16`, warm-up inference at construction) and falls back to CPU. Verified on `intersection_montreal_720p.webm`: ~85 FPS on an RTX 2000 Ada Laptop GPU, correct boxes on cars/trucks, cyclist correctly excluded. Preview/benchmark: `python -m cv.vehicle_detector <video> [--out annotated.mp4]`. Needs a Python 3.11 venv (`py install 3.11`; the system default was 3.14, which `torch`/`ultralytics` don't support yet) with CUDA `torch` (`pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128`, matched to the installed driver's CUDA version) installed before `pip install -r requirements.txt`. On Windows, `torch`'s DLLs also need the Microsoft VC++ Redistributable (https://aka.ms/vs/17/release/vc_redist.x64.exe) — without it, `import torch` fails with `WinError 126`. Merged to `main` via PR #5.
 
 ---
 
-## TASK 4: Simple Multi-Object Tracker (Windows) (COMPLETE — `cv/tracker.py`, branch `task-4-vehicle-tracker`, not yet merged to main)
+## TASK 4: Simple Multi-Object Tracker (Windows) (COMPLETE — `cv/tracker.py`, merged to main via PR #6)
 
 **Objective:** Assign persistent IDs to detected vehicles across frames (needed for lead-vehicle acceleration + reference-vehicle highlight).
 
@@ -75,11 +75,11 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: current-frame detection list (Task 3 output) + previous track state. Output: JSON `[{"track_id": int, "bbox": [...], "class": str, "velocity": [vx,vy]}, ...]` + updated internal state.
 
-**Status:** Implemented in `cv/tracker.py` (`VehicleTracker`, stateful — call `.update(detections)` once per frame). Greedy nearest-match: IoU when boxes overlap ≥ `min_iou` (0.15 default), else centroid distance within a `max_center_dist` gate (120px default); IoU matches always win over distance-only ones. No scipy/Hungarian algorithm needed. Class is majority-voted over a track's history so single-frame car/truck misclassification doesn't flicker the reported label. Velocity is the average frame-to-frame centroid displacement over the last `velocity_window` frames (5 default), in px/frame. Tracks unseen for `max_age` frames (15 default, ~0.5s at 30 FPS) are pruned and a later reappearance gets a new ID (no re-identification). `update()` returns only tracks matched in the current frame, not stale coasted boxes. Verified on `intersection_montreal_720p.webm`: ~95 FPS end-to-end with Task 3's detector on an RTX 2000 Ada; a parked car held the same ID across all 300 test frames, and two crossing vehicles didn't swap IDs. Unit-tested for occlusion recovery, pruning, and new-ID-on-reappearance. Preview: `python -m cv.tracker <video>`.
+**Status:** Implemented in `cv/tracker.py` (`VehicleTracker`, stateful — call `.update(detections)` once per frame). Greedy nearest-match: IoU when boxes overlap ≥ `min_iou` (0.15 default), else centroid distance within a `max_center_dist` gate (120px default); IoU matches always win over distance-only ones. No scipy/Hungarian algorithm needed. Class is majority-voted over a track's history so single-frame car/truck misclassification doesn't flicker the reported label. Velocity is the average frame-to-frame centroid displacement over the last `velocity_window` frames (5 default), in px/frame. Tracks unseen for `max_age` frames (15 default, ~0.5s at 30 FPS) are pruned and a later reappearance gets a new ID (no re-identification). `update()` returns only tracks matched in the current frame, not stale coasted boxes. Verified on `intersection_montreal_720p.webm`: ~95 FPS end-to-end with Task 3's detector on an RTX 2000 Ada; a parked car held the same ID across all 300 test frames, and two crossing vehicles didn't swap IDs. Unit-tested for occlusion recovery, pruning, and new-ID-on-reappearance. Preview: `python -m cv.tracker <video>`. Merged to `main` via PR #6.
 
 ---
 
-## TASK 5: Lead-Vehicle Acceleration Detector (Windows)
+## TASK 5: Lead-Vehicle Acceleration Detector (Windows) (COMPLETE — `cv/lead_vehicle.py`, merged to main via PR #7)
 
 **Objective:** Identify the "lead vehicle" (closest tracked vehicle roughly centered ahead) and detect when it starts accelerating from rest.
 
@@ -87,9 +87,11 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: tracked vehicle list (Task 4 output). Output: JSON `{"lead_vehicle_id": int|null, "accelerating": bool, "speed_px_per_frame": float}`.
 
+**Status:** Implemented in `cv/lead_vehicle.py` (`LeadVehicleDetector`). Lead vehicle is picked by bbox area discounted by horizontal offset from frame center (`center_bias`, 0.8 default). Rest/moving state uses hysteresis (`rest_thresh` 1.0, `accel_thresh` 2.5 px/frame, must clear the gap between the two) plus a 3-frame confirm debounce, same pattern as Task 2's red/green confirmation, over a 10-frame centroid-speed buffer. Merged to `main` via PR #7.
+
 ---
 
-## TASK 6: Ego-Vehicle Stationary Detector (Windows)
+## TASK 6: Ego-Vehicle Stationary Detector (Windows) (COMPLETE — `cv/ego_stationary.py` on branch `task-6-ego-stationary`; merge to main was reverted, see Status)
 
 **Objective:** Determine if our own (camera) vehicle is stationary, using only visual input (no speed sensor).
 
@@ -97,9 +99,11 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: current + previous grayscale frame, list of vehicle bboxes to exclude. Output: JSON `{"ego_stationary": bool, "mean_flow_magnitude": float}`.
 
+**Status:** Implemented in `cv/ego_stationary.py` (`EgoStationaryDetector`). Tracks static features via `cv2.goodFeaturesToTrack` restricted to the bottom half of the frame (`road_region_top` 0.5) with tracked-vehicle bboxes (+6px margin) masked out, then `cv2.calcOpticalFlowPyrLK` frame-to-frame; mean flow magnitude ≤ `stationary_thresh` (0.75px) over a 5-frame buffer, plus a 3-frame confirm debounce, decides `stationary`. PR #9 merged this to `main` but the merge was later reverted (commit `90e757c`) under the repo's no-auto-merge rule (see `CLAUDE.md`); the code only exists on `task-6-ego-stationary` now — **`cv/pipeline.py` (Task 11) imports `cv.ego_stationary` and will fail on `main` until this branch is remerged.**
+
 ---
 
-## TASK 7: Distraction Alert Event Engine (Windows)
+## TASK 7: Distraction Alert Event Engine (Windows) (COMPLETE — `cv/alert_engine.py` on branch `task-7-alert-engine`; merge to main was reverted, see Status)
 
 **Objective:** Fuse Tasks 2, 5, 6 into the core alert trigger: fire when (light turned green OR lead vehicle accelerates) AND ego is stationary, with debounce so it fires once per event.
 
@@ -107,9 +111,11 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: `light_state` dict (Task 2), `lead_vehicle` dict (Task 5), `ego_stationary` dict (Task 6), `frame_timestamp`. Output: JSON `{"alert": bool, "reason": "light_green"|"lead_accelerating"|null, "timestamp": float}`.
 
+**Status:** Implemented in `cv/alert_engine.py` (`AlertEngine`). `update()` requires `ego_stationary=True`; light-turned-green takes priority over lead-vehicle-accelerating when both fire the same frame (the more decisive "go" signal); a 3s `debounce_s` gap (measured against `frame_timestamp`) blocks re-firing. PR #11 merged this to `main` but the merge was later reverted (commit `faa7e36`) under the repo's no-auto-merge rule; the code only exists on `task-7-alert-engine` now — **both `cv/annotator.py` (Task 9) and `cv/pipeline.py` (Task 11) import `cv.alert_engine` and will fail on `main` until this branch is remerged.**
+
 ---
 
-## TASK 8: Reference-Vehicle Selection & HUD Highlight Logic (Windows)
+## TASK 8: Reference-Vehicle Selection & HUD Highlight Logic (Windows) (COMPLETE — `cv/reference_vehicle.py`, merged to main via PR #12)
 
 **Objective:** Pick a "reference vehicle" (e.g., a car turning, matching a heuristic) and produce highlight overlay data for contextual navigation.
 
@@ -117,15 +123,19 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: tracked vehicle list (Task 4), `expected_direction: "left"|"right"|"straight"`. Output: JSON `{"reference_track_id": int|null, "highlight_color": "#RRGGBB", "label": "Follow this car"}`.
 
+**Status:** Implemented in `cv/reference_vehicle.py` (`ReferenceVehicleDetector`). Judges a track's net horizontal drift (oldest→newest over a 10-centroid buffer) against `turn_thresh` (15px, for "left"/"right") or `straight_thresh` (5px, for "straight"), gated by a `consistency_ratio` (0.7) of frame-to-frame steps sharing the drift's sign so jitter doesn't qualify as turning. Returns styling metadata (`highlight_color` "#39FF14", `label` "Follow this car") for the selected track only. Merged to `main` via PR #12.
+
 ---
 
-## TASK 9: Frame Annotation Renderer (Windows)
+## TASK 9: Frame Annotation Renderer (Windows) (COMPLETE — `cv/annotator.py` on branch `task-9-frame-annotator`; merge to main was reverted, see Status)
 
 **Objective:** Draw all overlays (vehicle boxes, reference highlight, traffic-light state badge, alert banner) onto the frame for HUD output.
 
 **Technical Approach:** `cv2` drawing primitives (`rectangle`, `putText`, semi-transparent overlay via `cv2.addWeighted` for alert banner flash). Pure function, no state. Output frame is not displayed locally — it is handed to Task 11's network client, which streams it to the Mac.
 
 **Interface:** Input: `frame`, tracked vehicles (Task 4), reference-vehicle data (Task 8), light state (Task 2), alert event (Task 7). Output: annotated `np.ndarray` frame, passed to Task 11 for network transmission.
+
+**Status:** Implemented in `cv/annotator.py` (`annotate_frame`) — pure function, no state, delegates to each task's own `draw_overlay`/`draw_tracks` (tracks, reference highlight, light badge, alert banner) in that fixed order. PR #13 merged this to `main` but the merge was later reverted (commit `0c30c85`) under the repo's no-auto-merge rule; the code only exists on `task-9-frame-annotator` now — **`cv/pipeline.py` (Task 11) imports `cv.annotator` and will fail on `main` until this branch is remerged.**
 
 ---
 
@@ -143,13 +153,15 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 11: Main Processing Loop (Pipeline Orchestration) (Windows)
+## TASK 11: Main Processing Loop (Pipeline Orchestration) (Windows) (COMPLETE — `cv/pipeline.py`, merged to main via PR #14 — currently broken on main, see Status)
 
 **Objective:** Wire Tasks 1-9 into one loop: read frame → detect → track → decide → annotate → send to the Mac over the network.
 
 **Technical Approach:** Single async or threaded loop function `run_pipeline()`, run standalone on the Windows PC (no local FastAPI server needed — this machine is a client, not a host). Loop opens an outbound WebSocket connection to the Mac's `/ws/ingest` endpoint (`SERVER_URL` from `.env`) and pushes `{frame, events}` each iteration instead of an in-process queue. Reconnect with backoff if the connection to the Mac drops. DB logging (Task 13) and reaction-time/audio triggers (Task 14/15) run on the Mac side once it receives the event JSON — Windows only ships the payload.
 
 **Interface:** Input: `FrameSource` (Task 1) instance. Output: pushes `{frame, events}` over WebSocket to the Mac's `/ws/ingest` (Task 10) each iteration; no return value (long-running loop).
+
+**Status:** Implemented in `cv/pipeline.py` (`Pipeline` class + `run_pipeline()`), superseding `scripts/fake_producer.py` as the real producer with the same wire schema and reconnect-with-backoff. Merged to `main` via PR #14. **However, `cv/pipeline.py` imports `cv.alert_engine` (Task 7), `cv.annotator` (Task 9), and `cv.ego_stationary` (Task 6) — all three were merged then reverted off `main` (see Tasks 6/7/9) before/after this PR landed, so `import cv.pipeline` currently raises `ModuleNotFoundError` on `main`. Remerging `task-6-ego-stationary`, `task-7-alert-engine`, and `task-9-frame-annotator` is required before this pipeline is runnable.**
 
 ---
 

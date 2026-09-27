@@ -6,6 +6,9 @@ load_dotenv()
 
 TIGER_DATA_DSN = os.getenv("TIGER_DATA_DSN")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+# Stock premade "Rachel" voice; fine for two short cached alert lines (Task 15).
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
+ELEVENLABS_MODEL_ID = os.getenv("ELEVENLABS_MODEL_ID", "eleven_turbo_v2_5")
 
 SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
