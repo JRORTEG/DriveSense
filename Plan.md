@@ -79,7 +79,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 5: Lead-Vehicle Acceleration Detector (Windows) (COMPLETE — `cv/lead_vehicle.py`, merged to main via PR #7)
+## TASK 5: Lead-Vehicle Acceleration Detector (Windows) (COMPLETE — `cv/lead_vehicle.py`, branch `task-5-lead-vehicle-accel`, not yet merged to main)
 
 **Objective:** Identify the "lead vehicle" (closest tracked vehicle roughly centered ahead) and detect when it starts accelerating from rest.
 
@@ -87,7 +87,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: tracked vehicle list (Task 4 output). Output: JSON `{"lead_vehicle_id": int|null, "accelerating": bool, "speed_px_per_frame": float}`.
 
-**Status:** Implemented in `cv/lead_vehicle.py` (`LeadVehicleDetector`). Lead vehicle is picked by bbox area discounted by horizontal offset from frame center (`center_bias`, 0.8 default). Rest/moving state uses hysteresis (`rest_thresh` 1.0, `accel_thresh` 2.5 px/frame, must clear the gap between the two) plus a 3-frame confirm debounce, same pattern as Task 2's red/green confirmation, over a 10-frame centroid-speed buffer. Merged to `main` via PR #7.
+**Status:** Implemented in `cv/lead_vehicle.py` (`LeadVehicleDetector`, stateful — call `.update(tracks, frame_width)` once per frame; `frame_width` is needed for the center-offset heuristic and isn't in Task 4's own output). Lead-vehicle score is bbox area discounted by normalized horizontal offset from center (`center_bias` default 0.8, so an off-center-but-huge box can still lose to a smaller centered one). Per-track centroid history (10-frame buffer) gives mean frame-to-frame displacement as `speed_px_per_frame`. Acceleration is a debounced rest→moving edge (Schmitt-trigger hysteresis: `rest_thresh` 1.0, `accel_thresh` 2.5 px/frame, 3-frame confirm — same debounce pattern as `TrafficLightDetector`'s red→green edge), so `accelerating=True` fires once per transition, not for every frame already moving. New tracks are assumed at rest (matches the app's stopped-at-a-light scenario). Verified on `intersection_montreal_720p.webm`: 4 distinct lead vehicles correctly edge-triggered `accelerating=True` over 300 frames as they pulled away, no chatter. Preview: `python -m cv.lead_vehicle <video>`.
 
 ---
 
@@ -115,7 +115,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 8: Reference-Vehicle Selection & HUD Highlight Logic (Windows) (COMPLETE — `cv/reference_vehicle.py`, merged to main via PR #12)
+## TASK 8: Reference-Vehicle Selection & HUD Highlight Logic (Windows) (COMPLETE — `cv/reference_vehicle.py`, branch `task-8-reference-vehicle`, not yet merged to main)
 
 **Objective:** Pick a "reference vehicle" (e.g., a car turning, matching a heuristic) and produce highlight overlay data for contextual navigation.
 
@@ -123,7 +123,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: tracked vehicle list (Task 4), `expected_direction: "left"|"right"|"straight"`. Output: JSON `{"reference_track_id": int|null, "highlight_color": "#RRGGBB", "label": "Follow this car"}`.
 
-**Status:** Implemented in `cv/reference_vehicle.py` (`ReferenceVehicleDetector`). Judges a track's net horizontal drift (oldest→newest over a 10-centroid buffer) against `turn_thresh` (15px, for "left"/"right") or `straight_thresh` (5px, for "straight"), gated by a `consistency_ratio` (0.7) of frame-to-frame steps sharing the drift's sign so jitter doesn't qualify as turning. Returns styling metadata (`highlight_color` "#39FF14", `label` "Follow this car") for the selected track only. Merged to `main` via PR #12.
+**Status:** Implemented in `cv/reference_vehicle.py` (`ReferenceVehicleDetector`, stateful — call `.update(tracks, expected_direction)` once per frame). Per-track 10-frame centroid buffer gives net horizontal drift (oldest -> newest); a track qualifies as "turning" only if that drift clears `turn_thresh` (15px default) *and* at least 70% of its frame-to-frame steps agree in sign (so a car merely jittering side to side, net drift by chance, doesn't qualify). `expected_direction="straight"` instead looks for drift at/below `straight_thresh` (5px). Selection is sticky: the current reference track is kept as long as it still qualifies, rather than jumping to whichever candidate scores highest that frame, so the HUD highlight doesn't flicker between two similarly-turning cars. Output color/label are fixed styling metadata (neon green, `"Follow this car"`), not per-track. Verified on `intersection_montreal_720p.webm`: each of `left`/`right`/`straight` picks a qualifying track and holds it for a stable multi-frame stretch rather than flipping every frame. Preview: `python -m cv.reference_vehicle <video> --direction left|right|straight`.
 
 ---
 
@@ -153,7 +153,7 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 11: Main Processing Loop (Pipeline Orchestration) (Windows) (COMPLETE — `cv/pipeline.py`, merged to main via PR #14 — currently broken on main, see Status)
+## TASK 11: Main Processing Loop (Pipeline Orchestration) (Windows) (COMPLETE — `cv/pipeline.py`, branch `task-11-main-loop`, not yet merged to main)
 
 **Objective:** Wire Tasks 1-9 into one loop: read frame → detect → track → decide → annotate → send to the Mac over the network.
 
@@ -161,7 +161,7 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 **Interface:** Input: `FrameSource` (Task 1) instance. Output: pushes `{frame, events}` over WebSocket to the Mac's `/ws/ingest` (Task 10) each iteration; no return value (long-running loop).
 
-**Status:** Implemented in `cv/pipeline.py` (`Pipeline` class + `run_pipeline()`), superseding `scripts/fake_producer.py` as the real producer with the same wire schema and reconnect-with-backoff. Merged to `main` via PR #14. **However, `cv/pipeline.py` imports `cv.alert_engine` (Task 7), `cv.annotator` (Task 9), and `cv.ego_stationary` (Task 6) — all three were merged then reverted off `main` (see Tasks 6/7/9) before/after this PR landed, so `import cv.pipeline` currently raises `ModuleNotFoundError` on `main`. Remerging `task-6-ego-stationary`, `task-7-alert-engine`, and `task-9-frame-annotator` is required before this pipeline is runnable.**
+**Status:** Implemented in `cv/pipeline.py` (`run_pipeline(source, server_url, ...)`, async). A `Pipeline` class owns one instance of every stage's stateful detector (Tasks 2-8) so `.process(frame, timestamp)` is a single per-frame step returning `(annotated_frame, event)`; `annotate_frame` (Task 9) bakes all overlays into the frame before it's JPEG-encoded, so the Mac/browser side stays a dumb renderer. Wire schema matches `server/app.py`'s `/ws/ingest` exactly -- `{"type": "frame", "data": "<base64 JPEG>", "timestamp": float}` and `{"type": "event", "alert": bool, "reason": str|null, "ego_stationary": bool, "timestamp": float}` sent every frame (not just on alert, since Task 14 needs a continuous `ego_stationary` reading) -- and the reconnect-with-backoff shape (capped at 30s) mirrors `scripts/fake_producer.py`, which this now supersedes as the real producer; a dropped connection resumes from wherever `FrameSource` left off rather than restarting. Added `config.SERVER_URL` (defaults to loopback; `.env.example` already documented the LAN form). Depends on Tasks 6/7/8/9's modules, all complete but on their own not-yet-merged branches -- same expected situation as Task 9. Verified end-to-end against a minimal mock `/ws/ingest` server (not the full FastAPI+DB stack): frame/event message counts stayed in lockstep, `ego_stationary` toggled sensibly frame to frame, and killing/restarting the mock server exercised the reconnect-with-backoff path correctly (backoff resets to 1s on each successful reconnect, video resumes rather than restarting). Run: `python -m cv.pipeline [--source ...] [--server ws://<mac-ip>:8000/ws/ingest] [--roi x,y,w,h] [--direction left|right|straight]`.
 
 ---
 
