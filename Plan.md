@@ -147,13 +147,15 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 11: Main Processing Loop (Pipeline Orchestration) (Windows)
+## TASK 11: Main Processing Loop (Pipeline Orchestration) (Windows) (COMPLETE — `cv/pipeline.py`, branch `task-11-main-loop`, not yet merged to main)
 
 **Objective:** Wire Tasks 1-9 into one loop: read frame → detect → track → decide → annotate → send to the Mac over the network.
 
 **Technical Approach:** Single async or threaded loop function `run_pipeline()`, run standalone on the Windows PC (no local FastAPI server needed — this machine is a client, not a host). Loop opens an outbound WebSocket connection to the Mac's `/ws/ingest` endpoint (`SERVER_URL` from `.env`) and pushes `{frame, events}` each iteration instead of an in-process queue. Reconnect with backoff if the connection to the Mac drops. DB logging (Task 13) and reaction-time/audio triggers (Task 14/15) run on the Mac side once it receives the event JSON — Windows only ships the payload.
 
 **Interface:** Input: `FrameSource` (Task 1) instance. Output: pushes `{frame, events}` over WebSocket to the Mac's `/ws/ingest` (Task 10) each iteration; no return value (long-running loop).
+
+**Status:** Implemented in `cv/pipeline.py` (`run_pipeline(source, server_url, ...)`, async). A `Pipeline` class owns one instance of every stage's stateful detector (Tasks 2-8) so `.process(frame, timestamp)` is a single per-frame step returning `(annotated_frame, event)`; `annotate_frame` (Task 9) bakes all overlays into the frame before it's JPEG-encoded, so the Mac/browser side stays a dumb renderer. Wire schema matches `server/app.py`'s `/ws/ingest` exactly -- `{"type": "frame", "data": "<base64 JPEG>", "timestamp": float}` and `{"type": "event", "alert": bool, "reason": str|null, "ego_stationary": bool, "timestamp": float}` sent every frame (not just on alert, since Task 14 needs a continuous `ego_stationary` reading) -- and the reconnect-with-backoff shape (capped at 30s) mirrors `scripts/fake_producer.py`, which this now supersedes as the real producer; a dropped connection resumes from wherever `FrameSource` left off rather than restarting. Added `config.SERVER_URL` (defaults to loopback; `.env.example` already documented the LAN form). Depends on Tasks 6/7/8/9's modules, all complete but on their own not-yet-merged branches -- same expected situation as Task 9. Verified end-to-end against a minimal mock `/ws/ingest` server (not the full FastAPI+DB stack): frame/event message counts stayed in lockstep, `ego_stationary` toggled sensibly frame to frame, and killing/restarting the mock server exercised the reconnect-with-backoff path correctly (backoff resets to 1s on each successful reconnect, video resumes rather than restarting). Run: `python -m cv.pipeline [--source ...] [--server ws://<mac-ip>:8000/ws/ingest] [--roi x,y,w,h] [--direction left|right|straight]`.
 
 ---
 
