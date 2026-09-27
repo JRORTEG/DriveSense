@@ -111,13 +111,15 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 8: Reference-Vehicle Selection & HUD Highlight Logic (Windows)
+## TASK 8: Reference-Vehicle Selection & HUD Highlight Logic (Windows) (COMPLETE — `cv/reference_vehicle.py`, branch `task-8-reference-vehicle`, not yet merged to main)
 
 **Objective:** Pick a "reference vehicle" (e.g., a car turning, matching a heuristic) and produce highlight overlay data for contextual navigation.
 
 **Technical Approach:** Heuristic on Task 4 tracks: select vehicle whose bbox centroid trajectory shows consistent lateral drift beyond threshold (turning) within an ROI relevant to the upcoming maneuver (configurable "expected turn direction" input, e.g. from a stub GPS instruction). Output styling metadata (color, label) for that track ID only.
 
 **Interface:** Input: tracked vehicle list (Task 4), `expected_direction: "left"|"right"|"straight"`. Output: JSON `{"reference_track_id": int|null, "highlight_color": "#RRGGBB", "label": "Follow this car"}`.
+
+**Status:** Implemented in `cv/reference_vehicle.py` (`ReferenceVehicleDetector`, stateful — call `.update(tracks, expected_direction)` once per frame). Per-track 10-frame centroid buffer gives net horizontal drift (oldest -> newest); a track qualifies as "turning" only if that drift clears `turn_thresh` (15px default) *and* at least 70% of its frame-to-frame steps agree in sign (so a car merely jittering side to side, net drift by chance, doesn't qualify). `expected_direction="straight"` instead looks for drift at/below `straight_thresh` (5px). Selection is sticky: the current reference track is kept as long as it still qualifies, rather than jumping to whichever candidate scores highest that frame, so the HUD highlight doesn't flicker between two similarly-turning cars. Output color/label are fixed styling metadata (neon green, `"Follow this car"`), not per-track. Verified on `intersection_montreal_720p.webm`: each of `left`/`right`/`straight` picks a qualifying track and holds it for a stable multi-frame stretch rather than flipping every frame. Preview: `python -m cv.reference_vehicle <video> --direction left|right|straight`.
 
 ---
 
