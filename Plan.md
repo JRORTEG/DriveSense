@@ -209,7 +209,7 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 16: Frontend HUD Page (Mac) (COMPLETE — `frontend/index.html` + `hud.js` + `hud.css`, StaticFiles mount in `server/app.py`, branch `feat/task-15-elevenlabs-voice`, not yet merged to main)
+## TASK 16: Frontend HUD Page (Mac) (COMPLETE — `frontend/index.html` + `hud.js` + `hud.css`, StaticFiles mount in `server/app.py`, branch `feat/task-16-hud`, not yet merged to main)
 
 **Objective:** Browser page showing live annotated video feed + alert flash + audio playback, as the primary demo screen.
 
