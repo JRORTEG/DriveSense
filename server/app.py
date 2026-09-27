@@ -43,6 +43,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from audio.tts import VoiceCache
+from db.metrics import get_summary
 from db.pool import apply_schema, close_pool, create_pool, try_create_hypertable
 from db.telemetry import TelemetryLogger
 from server.reaction_tracker import ReactionTracker
@@ -278,6 +279,13 @@ async def ws_stream(websocket: WebSocket) -> None:
     finally:
         writer_task.cancel()
         hub.unregister(client)
+
+
+@app.get("/api/metrics/summary")
+async def metrics_summary() -> dict:
+    """Task 17's dashboard reads this on a poll interval. Must stay ABOVE the
+    StaticFiles mount below -- same route-ordering rule as /health."""
+    return await get_summary(app.state.db_pool)
 
 
 # Registered last so it never shadows /health, /ws/ingest, or /ws/stream --

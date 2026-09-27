@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DriveSense Metrics</title>
+  <link rel="stylesheet" href="metrics.css" />
+</head>
+<body>
+  <div id="page">
+    <div id="topbar">
+      <h1>DRIVESENSE METRICS</h1>
+      <a id="hud-link" href="/">&larr; HUD</a>
+    </div>
+
+    <div id="db-banner">Database not connected &mdash; see <code>/health</code>.</div>
+
+    <div id="legend">
+      <span><span class="swatch" style="background:var(--series-light-green)"></span>Light Green</span>
+      <span><span class="swatch" style="background:var(--series-lead-accel)"></span>Lead Accelerating</span>
+    </div>
+
+    <div id="tiles">
+      <div class="tile">
+        <div class="tile-label">Total Alerts</div>
+        <div class="tile-value" id="tile-total">--</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Avg Reaction</div>
+        <div class="tile-value" id="tile-avg-reaction">--</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Alerts Over Time</h2>
+      <div class="chart-wrap"><canvas id="chart-timeline"></canvas></div>
+      <table id="table-timeline">
+        <thead>
+          <tr><th>Time</th><th>Reason</th><th class="num">Count</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Reaction Time per Alert</h2>
+      <div class="chart-wrap"><canvas id="chart-reaction"></canvas></div>
+      <table id="table-reaction">
+        <thead>
+          <tr><th>#</th><th>Time</th><th>Reason</th><th class="num">Reaction (ms)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="metrics.js"></script>
+</body>
+</html>
