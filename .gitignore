@@ -9,3 +9,5 @@ graphify-out/
 data/samples/*
 !data/samples/SOURCES.md
 temp/
+# YOLO weights (auto-downloaded by ultralytics on first VehicleDetector() construction)
+*.pt

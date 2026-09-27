@@ -58,7 +58,7 @@ class VoiceCache:
         if not _key_looks_configured(config.ELEVENLABS_API_KEY):
             logger.warning(
                 "ELEVENLABS_API_KEY not configured (still a placeholder or unset) -- "
-                "voice alerts disabled. See temp/ELEVENLABS_SETUP.md."
+                "voice alerts disabled. See DEMO.md and .env.example."
             )
             return
 
