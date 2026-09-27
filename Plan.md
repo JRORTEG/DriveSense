@@ -79,7 +79,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 5: Lead-Vehicle Acceleration Detector (Windows) (COMPLETE — `cv/lead_vehicle.py`, branch `task-5-lead-vehicle-accel`, not yet merged to main)
+## TASK 5: Lead-Vehicle Acceleration Detector (Windows) (COMPLETE — `cv/lead_vehicle.py`, merged to main via PR #17)
 
 **Objective:** Identify the "lead vehicle" (closest tracked vehicle roughly centered ahead) and detect when it starts accelerating from rest.
 
@@ -91,7 +91,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 6: Ego-Vehicle Stationary Detector (Windows) (COMPLETE — `cv/ego_stationary.py` on branch `task-6-ego-stationary`; merge to main was reverted, see Status)
+## TASK 6: Ego-Vehicle Stationary Detector (Windows) (COMPLETE — `cv/ego_stationary.py`, merged to main via PR #17)
 
 **Objective:** Determine if our own (camera) vehicle is stationary, using only visual input (no speed sensor).
 
@@ -99,11 +99,11 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: current + previous grayscale frame, list of vehicle bboxes to exclude. Output: JSON `{"ego_stationary": bool, "mean_flow_magnitude": float}`.
 
-**Status:** Implemented in `cv/ego_stationary.py` (`EgoStationaryDetector`). Tracks static features via `cv2.goodFeaturesToTrack` restricted to the bottom half of the frame (`road_region_top` 0.5) with tracked-vehicle bboxes (+6px margin) masked out, then `cv2.calcOpticalFlowPyrLK` frame-to-frame; mean flow magnitude ≤ `stationary_thresh` (0.75px) over a 5-frame buffer, plus a 3-frame confirm debounce, decides `stationary`. PR #9 merged this to `main` but the merge was later reverted (commit `90e757c`) under the repo's no-auto-merge rule (see `CLAUDE.md`); the code only exists on `task-6-ego-stationary` now — **`cv/pipeline.py` (Task 11) imports `cv.ego_stationary` and will fail on `main` until this branch is remerged.**
+**Status:** Implemented in `cv/ego_stationary.py` (`EgoStationaryDetector`). Tracks static features via `cv2.goodFeaturesToTrack` restricted to the bottom half of the frame (`road_region_top` 0.5) with tracked-vehicle bboxes (+6px margin) masked out, then `cv2.calcOpticalFlowPyrLK` frame-to-frame; mean flow magnitude ≤ `stationary_thresh` (0.75px) over a 5-frame buffer, plus a 3-frame confirm debounce, decides `stationary`. PR #9 originally merged this to `main` but the merge was reverted (commit `90e757c`) under the repo's no-auto-merge rule (see `CLAUDE.md`); it was later reassembled onto `main` for good via PR #17 (`feat/cv-pipeline-integration`, commit `d6b32be`) alongside Tasks 7 and 9, which depend on it.
 
 ---
 
-## TASK 7: Distraction Alert Event Engine (Windows) (COMPLETE — `cv/alert_engine.py` on branch `task-7-alert-engine`; merge to main was reverted, see Status)
+## TASK 7: Distraction Alert Event Engine (Windows) (COMPLETE — `cv/alert_engine.py`, merged to main via PR #17)
 
 **Objective:** Fuse Tasks 2, 5, 6 into the core alert trigger: fire when (light turned green OR lead vehicle accelerates) AND ego is stationary, with debounce so it fires once per event.
 
@@ -111,11 +111,11 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: `light_state` dict (Task 2), `lead_vehicle` dict (Task 5), `ego_stationary` dict (Task 6), `frame_timestamp`. Output: JSON `{"alert": bool, "reason": "light_green"|"lead_accelerating"|null, "timestamp": float}`.
 
-**Status:** Implemented in `cv/alert_engine.py` (`AlertEngine`). `update()` requires `ego_stationary=True`; light-turned-green takes priority over lead-vehicle-accelerating when both fire the same frame (the more decisive "go" signal); a 3s `debounce_s` gap (measured against `frame_timestamp`) blocks re-firing. PR #11 merged this to `main` but the merge was later reverted (commit `faa7e36`) under the repo's no-auto-merge rule; the code only exists on `task-7-alert-engine` now — **both `cv/annotator.py` (Task 9) and `cv/pipeline.py` (Task 11) import `cv.alert_engine` and will fail on `main` until this branch is remerged.**
+**Status:** Implemented in `cv/alert_engine.py` (`AlertEngine`). `update()` requires `ego_stationary=True`; light-turned-green takes priority over lead-vehicle-accelerating when both fire the same frame (the more decisive "go" signal); a 3s `debounce_s` gap (measured against `frame_timestamp`) blocks re-firing. PR #11 originally merged this to `main` but the merge was reverted (commit `faa7e36`) under the repo's no-auto-merge rule; it was later reassembled onto `main` for good via PR #17 (`feat/cv-pipeline-integration`, commit `d6b32be`) alongside Tasks 6 and 9, which it depends on / feeds into.
 
 ---
 
-## TASK 8: Reference-Vehicle Selection & HUD Highlight Logic (Windows) (COMPLETE — `cv/reference_vehicle.py`, branch `task-8-reference-vehicle`, not yet merged to main)
+## TASK 8: Reference-Vehicle Selection & HUD Highlight Logic (Windows) (COMPLETE — `cv/reference_vehicle.py`, merged to main via PR #17)
 
 **Objective:** Pick a "reference vehicle" (e.g., a car turning, matching a heuristic) and produce highlight overlay data for contextual navigation.
 
@@ -127,7 +127,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 ---
 
-## TASK 9: Frame Annotation Renderer (Windows) (COMPLETE — `cv/annotator.py` on branch `task-9-frame-annotator`; merge to main was reverted, see Status)
+## TASK 9: Frame Annotation Renderer (Windows) (COMPLETE — `cv/annotator.py`, merged to main via PR #17)
 
 **Objective:** Draw all overlays (vehicle boxes, reference highlight, traffic-light state badge, alert banner) onto the frame for HUD output.
 
@@ -135,7 +135,7 @@ FastAPI endpoints must bind to `0.0.0.0` (not `127.0.0.1`) with CORS enabled, so
 
 **Interface:** Input: `frame`, tracked vehicles (Task 4), reference-vehicle data (Task 8), light state (Task 2), alert event (Task 7). Output: annotated `np.ndarray` frame, passed to Task 11 for network transmission.
 
-**Status:** Implemented in `cv/annotator.py` (`annotate_frame`) — pure function, no state, delegates to each task's own `draw_overlay`/`draw_tracks` (tracks, reference highlight, light badge, alert banner) in that fixed order. PR #13 merged this to `main` but the merge was later reverted (commit `0c30c85`) under the repo's no-auto-merge rule; the code only exists on `task-9-frame-annotator` now — **`cv/pipeline.py` (Task 11) imports `cv.annotator` and will fail on `main` until this branch is remerged.**
+**Status:** Implemented in `cv/annotator.py` (`annotate_frame`) — pure function, no state, delegates to each task's own `draw_overlay`/`draw_tracks` (tracks, reference highlight, light badge, alert banner) in that fixed order. PR #13 originally merged this to `main` but the merge was reverted (commit `0c30c85`) under the repo's no-auto-merge rule; it was later reassembled onto `main` for good via PR #17 (`feat/cv-pipeline-integration`, commit `d6b32be`) alongside Tasks 6 and 7, which `cv/pipeline.py` (Task 11) depends on.
 
 ---
 
@@ -153,7 +153,7 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 11: Main Processing Loop (Pipeline Orchestration) (Windows) (COMPLETE — `cv/pipeline.py`, branch `task-11-main-loop`, not yet merged to main)
+## TASK 11: Main Processing Loop (Pipeline Orchestration) (Windows) (COMPLETE — `cv/pipeline.py`, merged to main via PR #17; hardened further in Task 18)
 
 **Objective:** Wire Tasks 1-9 into one loop: read frame → detect → track → decide → annotate → send to the Mac over the network.
 
@@ -161,7 +161,7 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 **Interface:** Input: `FrameSource` (Task 1) instance. Output: pushes `{frame, events}` over WebSocket to the Mac's `/ws/ingest` (Task 10) each iteration; no return value (long-running loop).
 
-**Status:** Implemented in `cv/pipeline.py` (`run_pipeline(source, server_url, ...)`, async). A `Pipeline` class owns one instance of every stage's stateful detector (Tasks 2-8) so `.process(frame, timestamp)` is a single per-frame step returning `(annotated_frame, event)`; `annotate_frame` (Task 9) bakes all overlays into the frame before it's JPEG-encoded, so the Mac/browser side stays a dumb renderer. Wire schema matches `server/app.py`'s `/ws/ingest` exactly -- `{"type": "frame", "data": "<base64 JPEG>", "timestamp": float}` and `{"type": "event", "alert": bool, "reason": str|null, "ego_stationary": bool, "timestamp": float}` sent every frame (not just on alert, since Task 14 needs a continuous `ego_stationary` reading) -- and the reconnect-with-backoff shape (capped at 30s) mirrors `scripts/fake_producer.py`, which this now supersedes as the real producer; a dropped connection resumes from wherever `FrameSource` left off rather than restarting. Added `config.SERVER_URL` (defaults to loopback; `.env.example` already documented the LAN form). Depends on Tasks 6/7/8/9's modules, all complete but on their own not-yet-merged branches -- same expected situation as Task 9. Verified end-to-end against a minimal mock `/ws/ingest` server (not the full FastAPI+DB stack): frame/event message counts stayed in lockstep, `ego_stationary` toggled sensibly frame to frame, and killing/restarting the mock server exercised the reconnect-with-backoff path correctly (backoff resets to 1s on each successful reconnect, video resumes rather than restarting). Run: `python -m cv.pipeline [--source ...] [--server ws://<mac-ip>:8000/ws/ingest] [--roi x,y,w,h] [--direction left|right|straight]`.
+**Status:** Implemented in `cv/pipeline.py` (`run_pipeline(source, server_url, ...)`, async). A `Pipeline` class owns one instance of every stage's stateful detector (Tasks 2-8) so `.process(frame, timestamp)` is a single per-frame step returning `(annotated_frame, event)`; `annotate_frame` (Task 9) bakes all overlays into the frame before it's JPEG-encoded, so the Mac/browser side stays a dumb renderer. Wire schema matches `server/app.py`'s `/ws/ingest` exactly -- `{"type": "frame", "data": "<base64 JPEG>", "timestamp": float}` and `{"type": "event", "alert": bool, "reason": str|null, "ego_stationary": bool, "timestamp": float}` sent every frame (not just on alert, since Task 14 needs a continuous `ego_stationary` reading) -- and the reconnect-with-backoff shape (capped at 30s) mirrors `scripts/fake_producer.py`, which this now supersedes as the real producer; a dropped connection resumes from wherever `FrameSource` left off rather than restarting. Added `config.SERVER_URL` (defaults to loopback; `.env.example` already documented the LAN form). Verified end-to-end against a minimal mock `/ws/ingest` server (not the full FastAPI+DB stack): frame/event message counts stayed in lockstep, `ego_stationary` toggled sensibly frame to frame, and killing/restarting the mock server exercised the reconnect-with-backoff path correctly (backoff resets to 1s on each successful reconnect, video resumes rather than restarting). Run: `python -m cv.pipeline [--source ...] [--server ws://<mac-ip>:8000/ws/ingest] [--roi x,y,w,h] [--direction left|right|straight]`. Task 18 replaced the single blanket try/except this description originally implied with per-stage isolation (`Pipeline._stage`), fixed a `_prev_gray` ordering bug that could inflate optical-flow readings across a stage failure, widened the reconnect `except` beyond plain `OSError`, and moved frame-read/processing off the event loop via `asyncio.to_thread` so a stalled CV stage can't delay the WebSocket's own disconnect detection — see Task 18 for detail.
 
 ---
 
@@ -187,7 +187,7 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 14: Reaction-Time Capture (Mac) (COMPLETE — branch `feat/task-14-reaction-time`, not yet merged to main; `server/reaction_tracker.py`)
+## TASK 14: Reaction-Time Capture (Mac) (COMPLETE — `server/reaction_tracker.py`, merged to main via PR #17)
 
 **Objective:** Measure and log time between alert firing and driver "reacting" (ego vehicle starts moving again, from Task 6 flipping to `ego_stationary=False`).
 
@@ -199,7 +199,7 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 15: ElevenLabs Voice Alert (Mac)
+## TASK 15: ElevenLabs Voice Alert (Mac) (COMPLETE — `audio/tts.py`, merged to main via PR #17)
 
 **Objective:** Convert alert reason into a spoken audio cue and play/stream it on trigger.
 
@@ -207,9 +207,11 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 **Interface:** Input: `reason: str` enum from Task 7. Output: audio bytes (WAV/MP3) cached in memory; WebSocket message `{"type":"audio","reason":str,"data":"<base64>"}`.
 
+**Status:** Implemented in `audio/tts.py` (`VoiceCache`), option (b) from the Technical Approach — server-generated, browser-played, no server-side playback library. `warm_up()` pre-generates and caches both `PHRASES` entries ("Light's green, go!" / "Car ahead is moving!") as base64 MP3 (`mp3_44100_128`) once at FastAPI startup via `asyncio.to_thread` (the SDK's `convert()` is a blocking call), so a live alert never waits on the ElevenLabs API. Degrades the same way `db/pool.py` does: a missing/placeholder `ELEVENLABS_API_KEY` leaves the cache empty and `get_audio_b64()` returns `None` for everything, never crashing the server. Wired into `server/app.py`'s `/ws/ingest` handler: on an `event` message with `alert=True`, the cached audio for that `reason` is looked up and rebroadcast to `/ws/stream` as `{"type":"audio","reason":str,"data":"<base64>"}`, immediately after the triggering event. `/health`'s `voice` field reports `{"enabled": bool, "cached_reasons": [...]}` for at-a-glance verification. Verified via Task 18's `check_env.py`, which runs the same `warm_up()` path and asserts both reasons are cached.
+
 ---
 
-## TASK 16: Frontend HUD Page (Mac) (COMPLETE — `frontend/index.html` + `hud.js` + `hud.css`, StaticFiles mount in `server/app.py`, branch `feat/task-16-hud`, not yet merged to main)
+## TASK 16: Frontend HUD Page (Mac) (COMPLETE — `frontend/index.html` + `hud.js` + `hud.css`, StaticFiles mount in `server/app.py`, merged to main via PR #16)
 
 **Objective:** Browser page showing live annotated video feed + alert flash + audio playback, as the primary demo screen.
 
@@ -221,7 +223,7 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 
 ---
 
-## TASK 17: Real-Time Metrics Dashboard (Mac) (COMPLETE — `db/metrics.py` + `GET /api/metrics/summary` in `server/app.py`, `frontend/metrics.html` + `metrics.js` + `metrics.css`, branch `feat/task-17-metrics-dashboard`, not yet merged to main)
+## TASK 17: Real-Time Metrics Dashboard (Mac) (COMPLETE — `db/metrics.py` + `GET /api/metrics/summary` in `server/app.py`, `frontend/metrics.html` + `metrics.js` + `metrics.css`, merged to main via PR #17)
 
 **Objective:** Secondary panel/page showing telemetry charts (alert frequency, reaction times over session).
 
@@ -240,3 +242,17 @@ Splitting ingest from stream keeps the producer (Windows) and consumers (browser
 **Technical Approach:** Sample driving video for repeatable demo. Try/except around each pipeline stage logging to console instead of crashing loop. Config flag to switch webcam↔file source without code change. Startup checklist script (`check_env.py`) verifying `.env`, DB reachable, ElevenLabs key valid. Verify LAN connectivity between the Windows PC and the Mac before demo start (correct `SERVER_URL`/IP, firewall allows the port); confirm Task 11's reconnect-with-backoff logic actually recovers if the Windows↔Mac link drops mid-demo, not just the browser↔server link.
 
 **Interface:** Input: none. Output: `main.py` runs full stack (`uvicorn server.app:app` on the Mac, pipeline script on the Windows PC), demo works end-to-end from cold start.
+
+**Status (branch `task-18-demo-hardening`, not yet merged to main — Mac-side work verified, Windows-side dual-machine run still pending):** Downloaded both sample clips per `data/samples/SOURCES.md` (gitignored, so this doesn't affect other checkouts) and added `*.pt` to `.gitignore` (the YOLO weights `ultralytics` auto-downloads on first `VehicleDetector()` construction were about to be committed by accident).
+
+`cv/pipeline.py` was rewritten around a `Pipeline._stage(name, fn, fallback)` helper that wraps each of the eight CV stages individually — not `process()` as a whole, because `transitioned_to_green` (Task 2) and `accelerating` (Task 5) are one-shot edge flags emitted on exactly one frame, and a single blanket try/except would let one `annotate_frame` bug silently swallow an entire alert. Each fallback is schema-exact (matches the stage's own return shape, e.g. lead-vehicle's own `{"lead_vehicle_id": None, "accelerating": False, ...}` neutral literal) so downstream `draw_overlay` dict-lookups by value never see an invalid key. Also fixed a latent ordering bug: `self._prev_gray` is now advanced immediately after `cvtColor`, before any stage that could raise runs — previously it advanced only after the ego-motion call, so an earlier exception could leave it stale by more than one frame and inflate the next optical-flow reading into a false "ego moving" detection. `run_pipeline`'s reconnect handling was widened from bare `OSError` to also catch `asyncio.TimeoutError` and `websockets.exceptions.WebSocketException` (covers `InvalidURI`/`InvalidHandshake`, which aren't `OSError` subclasses) plus a catch-all `Exception`, so the producer can no longer die outright. Frame reads and `Pipeline.process()` now run via `asyncio.to_thread` rather than blocking the event loop directly, so a slow CV stage can't delay the websocket's own ping/pong and close-handshake detection — the mechanism a mid-demo link drop depends on to be noticed promptly.
+
+Two small hardening fixes surfaced by a failure-mode audit of the whole pipeline: `config.TELEMETRY_FRAME_SAMPLE_N` is now floored at 1 (was a silent `ZeroDivisionError` risk in `db/telemetry.py` if ever set to 0), and `TelemetryLogger.stop()`'s shutdown-sentinel `put` is now bounded by a 2s timeout with a cancel fallback (was an unbounded hang if the queue was full and the worker already dead).
+
+New `check_env.py` (repo root) is role-aware (`--role mac|windows`, auto-detected from `sys.platform`; `--offline` skips network calls) and reuses existing modules rather than re-implementing checks: `db/pool.py`'s `create_pool`/`apply_schema`/`try_create_hypertable` for the real Tiger Cloud check, `audio/tts.py`'s `VoiceCache.warm_up()` for a real ElevenLabs validation, `cv/frame_source.py`'s `FrameSource` to open `VIDEO_SOURCE`, and `cv/vehicle_detector.py`'s `VehicleDetector` to report the YOLO device (warns if `cpu` on what should be the NVIDIA box). Prints `[ OK ]`/`[WARN]`/`[FAIL]` lines with fix hints and exits 1 on any failure.
+
+New `DEMO.md` is the cold-start runbook (per-machine commands, a failure playbook, and the automatic-recovery explanation for both reconnect paths); `README.md`'s setup block was split into separate Mac/Windows sections; the three dead `temp/*.md` references in `.env.example`, `db/pool.py`, and `audio/tts.py` now point at `DEMO.md` instead (`temp/` is gitignored and was never actually in the repo).
+
+**Verified so far (Mac-only, no Windows needed):** `check_env.py --role mac` passes every check against the live Tiger Cloud DSN and a real ElevenLabs key (both reasons cached); re-run against placeholder values in `.env` produces clean `[FAIL]` lines with fix hints and exit code 1, not a traceback. `main.py` boots, `/health` reports `"db":"connected"` and `"voice":{"enabled":true}`. `scripts/fake_producer.py --synthetic` + `scripts/stream_smoke.py` confirmed frame/event/audio messages relay correctly and `/api/metrics/summary`'s `total_alerts` grows live (189→191 over ~20s). A dedicated fault-injection script (not checked into the repo) monkeypatched `detect_track` to raise on one frame and `annotate_frame` to raise on every frame against 15 real frames of `intersection_montreal_720p.webm`: the loop survived both, `Pipeline.stats()` counted the failures correctly, `_prev_gray` was confirmed advanced *before* the failing stage ran (proving the ordering fix), and a forced alert on the same frame `annotate_frame` failed on still reached the emitted event with the correct `reason` intact.
+
+**Still pending (needs the Windows PC, not run yet this session):** `check_env.py --role windows` against a real `SERVER_URL`, `python -m cv.pipeline` streaming real annotated frames to the Mac's HUD end-to-end (this also closes out the "not visually confirmed in a browser" caveats left on Tasks 16 and 17), and the mid-demo link-drop rehearsal (stop/restart `main.py` on the Mac while Windows is streaming, confirm automatic reconnect with doubling backoff and no restart needed on the Windows side). Do not mark this task fully complete until those run — see `DEMO.md` for the exact commands.

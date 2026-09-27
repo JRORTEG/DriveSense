@@ -49,7 +49,7 @@ async def create_pool() -> asyncpg.Pool | None:
     if not _dsn_looks_configured(dsn):
         logger.warning(
             "TIGER_DATA_DSN not configured (still a placeholder or unset) -- "
-            "starting without a database. See temp/TIGER_CLOUD_SETUP.md."
+            "starting without a database. See DEMO.md and .env.example."
         )
         return None
 

@@ -80,8 +80,14 @@ class TelemetryLogger:
         collects them all, writes that final batch, then exits on its own."""
         if self._worker_task is None:
             return
-        await self._queue.put(_STOP)  # blocking put: waits for room if full
-        await self._worker_task
+        try:
+            # Blocking put waits for room if the queue is full -- bounded to 2s
+            # (Task 18) so a dead/stuck worker can't hang Ctrl-C teardown on the Mac.
+            await asyncio.wait_for(self._queue.put(_STOP), timeout=2.0)
+            await self._worker_task
+        except asyncio.TimeoutError:
+            logger.warning("telemetry queue full/worker stuck, cancelling instead of waiting")
+            self._worker_task.cancel()
 
     def log_event(self, msg: dict) -> None:
         """Fire-and-forget enqueue for event/alert/audio messages. Never
