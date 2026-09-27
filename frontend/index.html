@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DriveSense HUD</title>
+  <link rel="stylesheet" href="hud.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="strip">
+      <span id="conn-dot"></span>
+      <span id="conn-label">OFFLINE</span>
+      <span id="fps">-- fps</span>
+      <span id="ego">STOPPED</span>
+      <span id="sound">&#128266;</span>
+    </div>
+
+    <div id="stage">
+      <canvas id="canvas" width="1280" height="720"></canvas>
+      <div id="banner"></div>
+    </div>
+
+    <div id="readout">LAST: --</div>
+  </div>
+
+  <div id="start-overlay">
+    <div id="start-title">DRIVESENSE</div>
+    <button id="start-btn" type="button">START HUD</button>
+    <div id="start-hint">click to enable sound &amp; connect</div>
+  </div>
+
+  <script src="hud.js"></script>
+</body>
+</html>

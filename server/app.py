@@ -36,9 +36,11 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from audio.tts import VoiceCache
 from db.pool import apply_schema, close_pool, create_pool, try_create_hypertable
@@ -276,3 +278,10 @@ async def ws_stream(websocket: WebSocket) -> None:
     finally:
         writer_task.cancel()
         hub.unregister(client)
+
+
+# Registered last so it never shadows /health, /ws/ingest, or /ws/stream --
+# StaticFiles(html=True) is a catch-all at "/" and Starlette matches routes
+# in registration order (Task 16).
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
