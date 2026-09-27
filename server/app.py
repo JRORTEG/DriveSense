@@ -8,11 +8,16 @@ consumers never share a socket:
     {"type": "frame", "data": "<base64 JPEG>", "timestamp": float}
     {"type": "event", "alert": bool, "reason": str | null,
      "ego_stationary": bool, "timestamp": float}
-    {"type": "audio", "reason": str, "data": "<base64>"}   # added by Task 15
+    {"type": "audio", "reason": str, "data": "<base64>"}
 
   "event" is sent every frame, not only when an alert fires -- Task 14's
   reaction-time capture needs a continuous ego_stationary reading to catch
   the True->False flip after an alert (see server/reaction_tracker.py).
+
+  "audio" is never sent BY Windows -- it's generated here, server-side, and
+  broadcast on alert (Task 15, see audio/tts.py): a cached ElevenLabs phrase
+  for the alert's reason, looked up the moment an "event" with alert=true
+  arrives and rebroadcast to /ws/stream alongside it.
 
 - ``/ws/stream``  Browser clients connect here. Every message received on
   ``/ws/ingest`` is broadcast to every connected ``/ws/stream`` client.
@@ -35,6 +40,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from audio.tts import VoiceCache
 from db.pool import apply_schema, close_pool, create_pool, try_create_hypertable
 from db.telemetry import TelemetryLogger
 from server.reaction_tracker import ReactionTracker
@@ -143,6 +149,11 @@ async def lifespan(app: FastAPI):
         await app.state.telemetry.start()
         app.state.reaction_tracker = ReactionTracker(app.state.telemetry)
 
+    # Audio has no dependency on the database -- runs (and degrades)
+    # independently of whether Tiger Cloud is reachable.
+    app.state.voice_cache = VoiceCache()
+    await app.state.voice_cache.warm_up()
+
     yield
 
     if app.state.telemetry is not None:
@@ -175,6 +186,7 @@ async def health() -> dict:
         app.state.reaction_tracker is not None
         and app.state.reaction_tracker.pending_since is not None
     )
+    summary["voice"] = app.state.voice_cache.stats()
     return summary
 
 
@@ -225,6 +237,19 @@ async def ws_ingest(websocket: WebSocket) -> None:
                         tracker.on_event(msg)
                     except Exception:
                         logger.exception("reaction tracker failed on event")
+
+                if msg.get("alert"):
+                    audio_b64 = app.state.voice_cache.get_audio_b64(msg.get("reason"))
+                    if audio_b64 is not None:
+                        try:
+                            audio_msg = {
+                                "type": "audio",
+                                "reason": msg.get("reason"),
+                                "data": audio_b64,
+                            }
+                            app.state.hub.broadcast(json.dumps(audio_msg), "audio")
+                        except Exception:
+                            logger.exception("failed to broadcast voice alert audio")
     except WebSocketDisconnect:
         logger.info("producer disconnected from /ws/ingest")
     except Exception:
